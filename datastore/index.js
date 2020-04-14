@@ -10,8 +10,13 @@ var items = {};
 
 exports.create = (text, callback) => {
   counter.getNextUniqueId((err, id) => {
+    if (err) {
+      callback(err);
+    }
     var pathName = path.join(exports.dataDir, `${id}.txt`);
-    fs.writeFile(pathName, text, (err) => callback(null, { id, text }) ); //--> called in server.js, to send back response object
+    fs.writeFile(pathName, text, (err) => {
+      callback(err, {id, text});
+    }); //--> called in server.js, to send back response object
 
   });
   // items[id] = text;
@@ -21,7 +26,7 @@ exports.create = (text, callback) => {
 exports.readOne = (id, callback) => {
   var pathName = path.join(exports.dataDir, `${id}.txt`);
   fs.readFile(pathName, (err, text) => {
-    if (!text) {
+    if (!text || err) {
       callback(new Error(`No item with id: ${id}`));
     } else {
       callback(null, { id, 'text': text.toString() });
@@ -39,6 +44,9 @@ var readOneAsync = Promise.promisify(exports.readOne);
 
 exports.readAll = (callback) => {
   fs.readdir(exports.dataDir, ((err, files) => {
+    if (err) {
+      callback(err);
+    }
     var idArr = files.map((file) => {
       var id = file.slice(0, 5);
       return id;
@@ -46,8 +54,8 @@ exports.readAll = (callback) => {
     Promise.all(idArr.map((id) => readOneAsync(id)))
       .then((filesArr) =>
         callback(null, filesArr)
-      );
-
+      )
+      .catch((err) => callback(err));
   }));
 
   // var data = _.map(items, (text, id) => {
@@ -59,11 +67,11 @@ exports.readAll = (callback) => {
 exports.update = (id, text, callback) => {
   var pathName = path.join(exports.dataDir, `${id}.txt`);
   fs.readFile(pathName, (err, item) => {
-    if (!item) {
+    if (!item || err) {
       callback(new Error(`No item with id: ${id}`));
     } else {
       fs.writeFile(pathName, text, (err) => {
-        callback(null, { id, 'text': text.toString() });
+        callback(err, { id, 'text': text.toString() });
       });
     }
   });
